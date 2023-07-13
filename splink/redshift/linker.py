@@ -12,6 +12,8 @@ from ..linker import Linker
 from ..misc import ensure_is_list
 from ..splink_dataframe import SplinkDataFrame
 from ..unique_id_concat import _composite_unique_id_from_nodes_sql
+from ..sql_transform import sqlglot_transform_sql
+from .redshift_helpers.redshift_transforms import add_frame_clause
 
 logger = logging.getLogger(__name__)
 
@@ -130,8 +132,7 @@ class RedshiftLinker(Linker):
         # In the case of a table already existing in the database,
         # execute sql is only reached if the user has explicitly turned off the cache
         self._delete_table_from_database(physical_name)
-        sql = sql.replace('partition by group_name order by value_count desc',
-                          'partition by group_name order by value_count desc rows between unbounded preceding and current row')
+        sql = sqlglot_transform_sql(sql, add_frame_clause)
 
         if self.output_sql_to_file:
             os.makedirs(self.output_sql_directory, exist_ok=True)

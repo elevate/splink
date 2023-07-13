@@ -1,14 +1,11 @@
 import sqlglot
-from sqlglot import expressions as exp
+import re
 
 
-def cast_concat_as_varchar(node):
-    if isinstance(node, exp.Column):
-        if isinstance(node.parent, exp.Cast):
-            return node
+def add_frame_clause(node):
+    sql = node.sql()
+    sql = re.sub(r'(partition by \w+ order by \w+ desc)',
+                 r'\1 rows between unbounded preceding and current row',
+                 sql, flags=re.IGNORECASE)
+    return sqlglot.parse_one(sql)
 
-        if node.find_ancestor(exp.DPipe):
-            sql = f"cast({node.sql()} as varchar)"
-            return sqlglot.parse_one(sql)
-
-    return node
