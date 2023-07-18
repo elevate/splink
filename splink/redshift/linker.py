@@ -11,8 +11,9 @@ from ..input_column import InputColumn
 from ..linker import Linker
 from ..misc import ensure_is_list
 from ..splink_dataframe import SplinkDataFrame
-from ..unique_id_concat import _composite_unique_id_from_nodes_sql
 from ..sql_transform import sqlglot_transform_sql
+from ..unique_id_concat import _composite_unique_id_from_nodes_sql
+
 from .redshift_helpers.redshift_transforms import add_frame_clause
 
 logger = logging.getLogger(__name__)
@@ -33,7 +34,11 @@ class RedshiftDataFrame(SplinkDataFrame):
         FROM information_schema.columns
         WHERE table_name = '{self.physical_name}'
         OR table_schema || '.' || table_name = '{self.physical_name}'
-        OR table_catalog || '.' || table_schema || '.' || table_name = '{self.physical_name}';
+        OR (
+            table_catalog || '.' || 
+            table_schema || '.' || 
+            table_name 
+        ) = '{self.physical_name}';
         """
         res = self.linker._run_sql_execution(sql).fetchall()
         cols = [r["column_name"] for r in res]
@@ -54,7 +59,11 @@ class RedshiftDataFrame(SplinkDataFrame):
         FROM information_schema.tables
         WHERE table_name = '{self.physical_name}'
         OR table_schema || '.' || table_name = '{self.physical_name}'
-        OR table_catalog || '.' || table_schema || '.' || table_name = '{self.physical_name}';
+        OR (
+            table_catalog || '.' || 
+            table_schema || '.' || 
+            table_name 
+        ) = '{self.physical_name}';
         """
 
         res = self.linker._run_sql_execution(sql).fetchall()
@@ -90,10 +99,8 @@ class RedshiftLinker(Linker):
         engine: Engine = None,
         set_up_basic_logging=True,
         input_table_aliases: str | list = None,
-        schema="splink",
-        output_sql_to_file=False,
-        output_sql_directory='/tmp/'
-    ):
+        schema="splink"):
+        
         self._sql_dialect_ = "postgres"
         if not isinstance(engine, Engine):
             raise ValueError(
@@ -133,12 +140,6 @@ class RedshiftLinker(Linker):
         # execute sql is only reached if the user has explicitly turned off the cache
         self._delete_table_from_database(physical_name)
         sql = sqlglot_transform_sql(sql, add_frame_clause)
-
-        if self.output_sql_to_file:
-            os.makedirs(self.output_sql_directory, exist_ok=True)
-            logger.info(f'Saving file to {self.output_sql_directory}{physical_name}.sql')
-            with open(f'{self.output_sql_directory}{physical_name}.sql','w') as f:
-                print(sql, file=f)
 
         sql = f"CREATE TABLE {physical_name} AS {sql}"
         self._log_and_run_sql_execution(sql, templated_name, physical_name)
@@ -236,34 +237,15 @@ class RedshiftLinker(Linker):
         sql = """
         CREATE OR REPLACE FUNCTION log2(float8)
         RETURNS float8 AS $$
-        SELECT (log($1)/log(2))::float8   
+        SELECT (log($1)/log(2))::float8
         $$ LANGUAGE SQL IMMUTABLE;
         """
         self._run_sql_execution(sql)
-    #
-    # def _create_array_intersect_function(self):
-    #     sql = """
-    #     CREATE OR REPLACE FUNCTION array_intersect(x anyarray, y anyarray)
-    #     RETURNS anyarray AS $$
-    #     SELECT ARRAY( SELECT DISTINCT * FROM UNNEST(x) WHERE UNNEST = ANY(y) )
-    #     $$ LANGUAGE SQL IMMUTABLE;
-    #     """
-    #     self._run_sql_execution(sql)
 
     def _register_custom_functions(self):
         # if people have issues with permissions we can allow these to be optional
         # need for predict_from_comparison_vectors_sql (could adjust)
         self._create_log2_function()
-        # need for array_intersect levels
-       # self._create_array_intersect_function()
-
-    # https: // towardsdatascience.com / bringing - fuzzy - matching - to - redshift - d487ce98d170
-    # MIGHT BE AN ALTERNATIVE SOLUTION FOR FUZZY MATCHING
-    # def _register_extensions(self):
-    #     sql = """
-    #     CREATE EXTENSION IF NOT EXISTS fuzzystrmatch;
-    #     """
-    #     self._run_sql_execution(sql)
 
     def _create_splink_schema(self):
         sql = f"""

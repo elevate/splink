@@ -1,5 +1,5 @@
-import sqlglot
 import re
+import sqlglot
 
 
 def add_frame_clause(node):
@@ -8,4 +8,3 @@ def add_frame_clause(node):
                  r'\1 rows between unbounded preceding and current row',
                  sql, flags=re.IGNORECASE)
     return sqlglot.parse_one(sql)
-

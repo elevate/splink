@@ -3,15 +3,6 @@ from ...dialect_base import (
 )
 
 
-def size_array_intersect_sql(col_name_l, col_name_r):
-    return f'''SELECT GET_ARRAY_LENGTH( ARRAY(
-    SELECT {col_name_l}[i]
-    FROM generate_series( array_lower({col_name_l}, 1), array_upper({col_name_l}, 1) ) i
-    WHERE ARRAY[{col_name_l}[i]] && {col_name_r}
-        )
-    )'''
-
-
 def regex_extract_sql(col_name, regex):
     return f"""
         regexp_substr({col_name}, '{regex}')
@@ -57,10 +48,6 @@ class RedshiftBase(DialectBase):
     @property
     def _sql_dialect(self):
         return "postgres"
-
-    # @property
-    # def _size_array_intersect_function(self):
-    #     return size_array_intersect_sql
 
     @property
     def _regex_extract_function(self):
