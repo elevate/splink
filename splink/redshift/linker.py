@@ -108,8 +108,6 @@ class RedshiftLinker(Linker):
             )
 
         self._engine = engine
-        self.output_sql_to_file = output_sql_to_file
-        self.output_sql_directory = output_sql_directory
 
         input_tables = ensure_is_list(input_table_or_tables)
         input_aliases = self._ensure_aliases_populated_and_is_list(
